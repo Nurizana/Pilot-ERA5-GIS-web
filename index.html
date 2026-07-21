@@ -58,6 +58,11 @@
             border-bottom: 1px solid #444;
             padding-bottom: 15px;
         }
+        
+        /* Remove border from the last section */
+        .panel-section:last-child {
+            border-bottom: none;
+        }
 
         .panel-section h3 {
             margin-top: 0;
@@ -112,11 +117,11 @@
 
         <div class="panel-section">
             <h3>2. Weather Parameter</h3>
-            <label><input type="radio" name="parameter" value="wind" checked> Animated Wind (850 hPa)</label>
+            <label><input type="radio" name="parameter" value="wind_static" checked> Wind (850 hPa)</label>
             <label><input type="radio" name="parameter" value="temp"> Temperature</label>
             <label><input type="radio" name="parameter" value="geo"> Geopotential</label>
             <label><input type="radio" name="parameter" value="rain"> Specific Rain Water Content</label>
-            <em style="font-size: 11px; color: #aaa;">Note: Non-wind parameters require backend JSON generation to display.</em>
+            <em style="font-size: 11px; color: #aaa;">Note: Static map parameters require backend JSON/image generation to display.</em>
         </div>
 
         <div class="panel-section">
@@ -135,6 +140,11 @@
             <h3>4. Animation Controls</h3>
             <button class="play-btn" onclick="togglePlay()">▶ Play Animation</button>
             <em style="font-size: 11px; color: #aaa;">Requires multi-timestep data.</em>
+        </div>
+
+        <div class="panel-section">
+            <h3>5. Wind Overlay</h3>
+            <label><input type="checkbox" id="toggle-wind-anim" checked> Animated Wind Particles (850 hPa)</label>
         </div>
 
     </div>
@@ -177,8 +187,11 @@
                     "#fee08b", "#fdae61", "#f46d43", "#d53e4f"
                 ]
             });
-            // Add by default
-            velocityLayer.addTo(map);
+            
+            // Add by default if the checkbox is checked initially
+            if ($('#toggle-wind-anim').is(':checked')) {
+                velocityLayer.addTo(map);
+            }
         }).fail(function() {
             console.error("Could not load data.json.");
         });
@@ -197,21 +210,21 @@
             }
         });
 
-        // Switch Parameter Layer
+        // Switch Parameter Layer (Placeholder for future static layers)
         $('input[name="parameter"]').change(function() {
             var selected = $(this).val();
-            
-            // First, remove wind if it exists
-            if (velocityLayer && map.hasLayer(velocityLayer)) {
-                map.removeLayer(velocityLayer);
-            }
+            console.log("Selected static parameter: " + selected + ". Waiting for data backend to support this.");
+            // Future logic to toggle static map layers (like colored temperature grids) will go here.
+        });
 
-            // Logic to add layers based on choice
-            if (selected === 'wind') {
-                if (velocityLayer) velocityLayer.addTo(map);
+        // Toggle Animated Wind Overlay (Section 5)
+        $('#toggle-wind-anim').change(function() {
+            if (!velocityLayer) return; // Do nothing if data hasn't loaded yet
+
+            if ($(this).is(':checked')) {
+                velocityLayer.addTo(map);
             } else {
-                // Placeholder for other parameters
-                console.log("Selected parameter: " + selected + ". Waiting for data backend to support this.");
+                map.removeLayer(velocityLayer);
             }
         });
 
