@@ -27,7 +27,7 @@ jobs:
 
       - name: Create .cdsapirc file
         run: |
-          echo "url: ${{ secrets.CDS_URL }}" > ~/.cdsapirc
+          echo "url: https://cds.climate.copernicus.eu/api" > ~/.cdsapirc
           echo "key: ${{ secrets.CDS_API_KEY }}" >> ~/.cdsapirc
 
       - name: Run data processing script
