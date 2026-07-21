@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ERA5 Monthly Wind Map</title>
+    <title>ERA5 Monthly Weather Map</title>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
@@ -17,25 +17,153 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-velocity@1.6.0/dist/leaflet-velocity.min.css"/>
     
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; }
-        #map { width: 100%; height: 100%; background: #333; }
+        body, html { margin: 0; padding: 0; height: 100%; font-family: Arial, sans-serif; overflow: hidden; }
+        #map { width: 100%; height: 100%; background: #111; }
+        
+        /* Slide-out Control Panel Styles */
+        #control-panel {
+            position: absolute;
+            top: 20px;
+            right: -300px; /* Hidden off-screen initially */
+            width: 280px;
+            height: 90%;
+            background: rgba(30, 30, 30, 0.9);
+            color: #fff;
+            z-index: 1000;
+            transition: right 0.4s ease-in-out;
+            padding: 20px;
+            border-radius: 10px 0 0 10px;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.5);
+            overflow-y: auto;
+        }
+
+        /* Invisible trigger area on the right edge */
+        #hover-trigger {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 50px;
+            height: 100%;
+            z-index: 999;
+        }
+
+        /* Show panel when hovering over the trigger or the panel itself */
+        #hover-trigger:hover + #control-panel,
+        #control-panel:hover {
+            right: 0;
+        }
+
+        .panel-section {
+            margin-bottom: 25px;
+            border-bottom: 1px solid #444;
+            padding-bottom: 15px;
+        }
+
+        .panel-section h3 {
+            margin-top: 0;
+            font-size: 16px;
+            color: #4da6ff;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        select, button {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+
+        button.play-btn {
+            background: #4da6ff;
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button.play-btn:hover {
+            background: #3388dd;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
 
-    <script>
-        // Initialize the map centered globally
-        var map = L.map('map').setView([20, 0], 2);
-        
-        // Add a dark basemap for better wind visibility
-        L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap & CartoDB'
-        }).addTo(map);
+    <!-- Hover Trigger Area -->
+    <div id="hover-trigger"></div>
 
-        // Fetch the generated data.json and render wind particles
+    <!-- Sliding Control Panel -->
+    <div id="control-panel">
+        
+        <div class="panel-section">
+            <h3>1. Base Map</h3>
+            <label><input type="radio" name="basemap" value="dark" checked> Night Vision (with labels)</label>
+            <label><input type="radio" name="basemap" value="ocean"> Blue Oceans (with labels)</label>
+        </div>
+
+        <div class="panel-section">
+            <h3>2. Weather Parameter</h3>
+            <label><input type="radio" name="parameter" value="wind" checked> Animated Wind (850 hPa)</label>
+            <label><input type="radio" name="parameter" value="temp"> Temperature</label>
+            <label><input type="radio" name="parameter" value="geo"> Geopotential</label>
+            <label><input type="radio" name="parameter" value="rain"> Specific Rain Water Content</label>
+            <em style="font-size: 11px; color: #aaa;">Note: Non-wind parameters require backend JSON generation to display.</em>
+        </div>
+
+        <div class="panel-section">
+            <h3>3. Time Selection</h3>
+            <select id="sel-year"><option>2026</option></select>
+            <select id="sel-month"><option>June</option></select>
+            <select id="sel-day">
+                <option>01</option><option>02</option><option>03</option>
+            </select>
+            <select id="sel-time">
+                <option>00:00</option><option>06:00</option><option>12:00</option><option>18:00</option>
+            </select>
+        </div>
+
+        <div class="panel-section">
+            <h3>4. Animation Controls</h3>
+            <button class="play-btn" onclick="togglePlay()">▶ Play Animation</button>
+            <em style="font-size: 11px; color: #aaa;">Requires multi-timestep data.</em>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. Initialize Map ---
+        var map = L.map('map', {
+            zoomControl: false // Move zoom control out of the way of the panel
+        }).setView([20, 0], 3);
+        L.control.zoom({ position: 'topleft' }).addTo(map);
+        
+        // --- 2. Define Basemaps ---
+        var darkMap = L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap & CartoDB'
+        });
+        
+        var oceanMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}', {
+            attribution: 'Tiles © Esri'
+        });
+
+        // Set default basemap
+        darkMap.addTo(map);
+
+        // --- 3. Initialize Wind Layer Variable ---
+        var velocityLayer = null;
+
+        // Fetch data and create wind layer
         $.getJSON('data.json', function (data) {
-            var velocityLayer = L.velocityLayer({
+            velocityLayer = L.velocityLayer({
                 displayValues: true,
                 displayOptions: {
                     velocityType: 'Wind (850 hPa)',
@@ -49,10 +177,57 @@
                     "#fee08b", "#fdae61", "#f46d43", "#d53e4f"
                 ]
             });
+            // Add by default
             velocityLayer.addTo(map);
         }).fail(function() {
-            console.error("Could not load data.json. Ensure the GitHub Action has run successfully.");
+            console.error("Could not load data.json.");
         });
+
+        // --- 4. UI Interaction Logic ---
+
+        // Switch Basemap
+        $('input[name="basemap"]').change(function() {
+            var selected = $(this).val();
+            if (selected === 'dark') {
+                map.removeLayer(oceanMap);
+                darkMap.addTo(map);
+            } else if (selected === 'ocean') {
+                map.removeLayer(darkMap);
+                oceanMap.addTo(map);
+            }
+        });
+
+        // Switch Parameter Layer
+        $('input[name="parameter"]').change(function() {
+            var selected = $(this).val();
+            
+            // First, remove wind if it exists
+            if (velocityLayer && map.hasLayer(velocityLayer)) {
+                map.removeLayer(velocityLayer);
+            }
+
+            // Logic to add layers based on choice
+            if (selected === 'wind') {
+                if (velocityLayer) velocityLayer.addTo(map);
+            } else {
+                // Placeholder for other parameters
+                console.log("Selected parameter: " + selected + ". Waiting for data backend to support this.");
+            }
+        });
+
+        // Play Button logic (Placeholder)
+        var isPlaying = false;
+        function togglePlay() {
+            isPlaying = !isPlaying;
+            var btn = document.querySelector('.play-btn');
+            if (isPlaying) {
+                btn.innerHTML = '⏸ Pause Animation';
+                btn.style.background = '#ff4d4d';
+            } else {
+                btn.innerHTML = '▶ Play Animation';
+                btn.style.background = '#4da6ff';
+            }
+        }
     </script>
 </body>
 </html>
