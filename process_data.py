@@ -2,6 +2,24 @@ import cdsapi
 import xarray as xr
 import json
 import numpy as np
+from datetime import datetime, timedelta
+import calendar
+
+print("Calculating safe dates for ERA5 dataset...")
+# ERA5 has a ~5 day latency. Since your GitHub Action runs on the 2nd of every month, 
+# the immediate previous month is not fully available yet. 
+# We dynamically calculate 2 months ago to ensure 100% data availability.
+now = datetime.utcnow()
+safe_date = now.replace(day=1) - timedelta(days=35)
+
+target_year = safe_date.strftime("%Y")
+target_month = safe_date.strftime("%m")
+
+# Automatically calculate the exact number of days in that month (handles leap years too)
+num_days = calendar.monthrange(int(target_year), int(target_month))[1]
+days_list = [f"{d:02d}" for d in range(1, num_days + 1)]
+
+print(f"Targeting Year: {target_year}, Month: {target_month}, Days: {num_days}")
 
 print("Connecting to CDS API...")
 client = cdsapi.Client()
@@ -17,12 +35,9 @@ request = {
         "u_component_of_wind",
         "v_component_of_wind"
     ],
-    "month": ["06"], 
-    "day": [
-        "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", 
-        "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", 
-        "21", "22", "23", "24", "25", "26", "27", "28", "29", "30"
-    ],
+    "year": [target_year],
+    "month": [target_month], 
+    "day": days_list,
     "time": [
         "00:00", "01:00", "02:00", "03:00", "04:00", "05:00",
         "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
@@ -35,7 +50,7 @@ request = {
 }
 
 output_file = "monthly_data.nc"
-print("Downloading data (this may take a while)...")
+print(f"Downloading data for {target_year}-{target_month} (this may take a while)...")
 client.retrieve(dataset, request, output_file)
 
 print("Processing NetCDF file...")
