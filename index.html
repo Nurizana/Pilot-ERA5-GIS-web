@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ERA5 Monthly Wind Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    
+    <!-- jQuery (Required for fetching JSON) -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Leaflet Velocity Plugin -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-velocity@1.6.0/dist/leaflet-velocity.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-velocity@1.6.0/dist/leaflet-velocity.min.css"/>
+    
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; }
+        #map { width: 100%; height: 100%; background: #333; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+
+    <script>
+        // Initialize the map centered globally
+        var map = L.map('map').setView([20, 0], 2);
+        
+        // Add a dark basemap for better wind visibility
+        L.tileLayer('https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap & CartoDB'
+        }).addTo(map);
+
+        // Fetch the generated data.json and render wind particles
+        $.getJSON('data.json', function (data) {
+            var velocityLayer = L.velocityLayer({
+                displayValues: true,
+                displayOptions: {
+                    velocityType: 'Wind (850 hPa)',
+                    position: 'bottomleft',
+                    emptyString: 'No wind data'
+                },
+                data: data,
+                maxVelocity: 25,
+                colorScale: [
+                    "#3288bd", "#66c2a5", "#abdda4", "#e6f598", 
+                    "#fee08b", "#fdae61", "#f46d43", "#d53e4f"
+                ]
+            });
+            velocityLayer.addTo(map);
+        }).fail(function() {
+            console.error("Could not load data.json. Ensure the GitHub Action has run successfully.");
+        });
+    </script>
+</body>
+</html>
