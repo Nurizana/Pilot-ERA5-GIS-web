@@ -117,7 +117,8 @@
 
         <div class="panel-section">
             <h3>2. Weather Parameter</h3>
-            <label><input type="radio" name="parameter" value="wind_static" checked> Wind (850 hPa)</label>
+            <!-- Removed the 'checked' attribute so nothing is selected by default -->
+            <label><input type="radio" name="parameter" value="wind_static"> Wind (850 hPa)</label>
             <label><input type="radio" name="parameter" value="temp"> Temperature</label>
             <label><input type="radio" name="parameter" value="geo"> Geopotential</label>
             <label><input type="radio" name="parameter" value="rain"> Specific Rain Water Content</label>
@@ -144,7 +145,8 @@
 
         <div class="panel-section">
             <h3>5. Wind Overlay</h3>
-            <label><input type="checkbox" id="toggle-wind-anim" checked> Animated Wind Particles (850 hPa)</label>
+            <!-- Removed the 'checked' attribute so the wind overlay is off by default -->
+            <label><input type="checkbox" id="toggle-wind-anim"> Animated Wind Particles (850 hPa)</label>
         </div>
 
     </div>
